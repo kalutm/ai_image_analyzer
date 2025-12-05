@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class PreviewModel {
   final String image;
   final String resolution;
