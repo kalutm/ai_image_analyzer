@@ -7,8 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.settings import settings
 
 HF_TOKEN = settings.HF_TOKEN
-MODEL = settings.MODEL  # put: Qwen/Qwen3-VL-8B-Instruct
-HF_URL = f"https://router.huggingface.co/models/{MODEL}"
+MODEL = settings.MODEL
+HF_URL = f"https://api-inference.huggingface.co/models/{MODEL}" 
 HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 app = FastAPI()
@@ -81,3 +81,25 @@ async def analyze(mode: AnalyzeMode = AnalyzeMode.DESCRIBE, file: UploadFile = F
         return resp.json()
     except ValueError:
         return {"output_text": resp.text}
+
+
+@app.post("/analyze-debug")
+async def analyze_debug(file: UploadFile = File(...)):
+    img = await file.read()
+    payload = {"inputs":"ping","image":""}  # small probe
+    try:
+        resp = requests.post(HF_URL, headers=HEADERS, json=payload, timeout=15)
+    except Exception as e:
+        # network/proxy error
+        raise HTTPException(status_code=502, detail=f"Request exception: {e}")
+
+    # return full debug info (trim large fields)
+    body_snippet = resp.text[:2000]
+    return {
+        "HF_URL": HF_URL,
+        "MODEL": MODEL,
+        "token_present": bool(HF_TOKEN),
+        "status_code": resp.status_code,
+        "response_headers": dict(resp.headers),
+        "response_text_snippet": body_snippet
+    }
